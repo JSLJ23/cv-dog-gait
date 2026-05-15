@@ -2,7 +2,7 @@
 
 Dog gait analysis software for video-based pose estimation, fine-tuning, annotated overlays, and limb-angle tracking.
 
-https://github.com/user-attachments/assets/4663fb35-d9ba-47d7-a539-ff67191bc0a7
+https://github.com/user-attachments/assets/0516ea28-8073-495a-bfbb-0bee15cbe840
 
 ## Quick Start
 

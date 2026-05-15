@@ -61,11 +61,16 @@ def browser_overlay_output_path(video_path: Path) -> Path:
 
 
 def download_overlay_output_path(video_path: Path) -> Path:
-    return DOWNLOAD_OUTPUT_DIR / f"{video_path.stem}_overlay.mp4"
+    return DOWNLOAD_OUTPUT_DIR / f"{video_path.stem}_overlay.mov"
 
 
 def video_format(path: str | Path) -> str:
-    return "video/webm" if Path(path).suffix.lower() == ".webm" else "video/mp4"
+    suffix = Path(path).suffix.lower()
+    if suffix == ".webm":
+        return "video/webm"
+    if suffix == ".mov":
+        return "video/quicktime"
+    return "video/mp4"
 
 
 def discover_checkpoints() -> list[CheckpointSpec]:
@@ -270,10 +275,10 @@ with tab_analysis:
                 if download_overlay_path and Path(download_overlay_path).exists():
                     download_overlay_file = Path(download_overlay_path)
                     st.download_button(
-                        "Download MP4 overlay",
+                        "Download MOV overlay",
                         data=download_overlay_file.read_bytes(),
                         file_name=download_overlay_file.name,
-                        mime="video/mp4",
+                        mime=video_format(download_overlay_file),
                     )
 
             st.subheader("Limb angles")

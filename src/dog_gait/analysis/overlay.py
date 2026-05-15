@@ -6,6 +6,7 @@ from collections.abc import Callable, Iterable
 from pathlib import Path
 from queue import Queue
 from threading import Thread
+import subprocess
 
 import numpy as np
 import pandas as pd
@@ -40,13 +41,70 @@ def _limb_color(part: str) -> tuple[int, int, int]:
     return COLORS["body"]
 
 
+class H264MovWriter:
+    def __init__(self, output_path: Path, fps: float, size: tuple[int, int]) -> None:
+        try:
+            from imageio_ffmpeg import get_ffmpeg_exe
+        except ImportError as exc:
+            raise RuntimeError("H.264 MOV export requires the imageio-ffmpeg package.") from exc
+
+        width, height = size
+        command = [
+            get_ffmpeg_exe(),
+            "-y",
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-f",
+            "rawvideo",
+            "-vcodec",
+            "rawvideo",
+            "-pix_fmt",
+            "bgr24",
+            "-s",
+            f"{width}x{height}",
+            "-r",
+            f"{fps:.6f}",
+            "-i",
+            "-",
+            "-an",
+            "-c:v",
+            "libx264",
+            "-pix_fmt",
+            "yuv420p",
+            "-preset",
+            "veryfast",
+            "-crf",
+            "20",
+            "-movflags",
+            "+faststart",
+            str(output_path),
+        ]
+        self.process = subprocess.Popen(command, stdin=subprocess.PIPE, stderr=subprocess.PIPE)
+
+    def write(self, frame: np.ndarray) -> None:
+        if self.process.stdin is None:
+            raise RuntimeError("H.264 MOV encoder stdin is closed.")
+        self.process.stdin.write(np.ascontiguousarray(frame).tobytes())
+
+    def release(self) -> None:
+        if self.process.stdin is not None and not self.process.stdin.closed:
+            self.process.stdin.close()
+        stderr = self.process.stderr.read().decode("utf-8", errors="replace") if self.process.stderr is not None else ""
+        returncode = self.process.wait()
+        if returncode != 0:
+            raise RuntimeError(f"H.264 MOV export failed: {stderr.strip() or f'ffmpeg exited with {returncode}'}")
+
+
 def _video_writer_fourccs(output_path: Path) -> tuple[str, ...]:
     if output_path.suffix.lower() == ".webm":
         return ("VP80", "VP90")
     return ("avc1", "mp4v")
 
 
-def _open_video_writer(output_path: Path, fps: float, size: tuple[int, int]) -> cv2.VideoWriter:
+def _open_video_writer(output_path: Path, fps: float, size: tuple[int, int]) -> cv2.VideoWriter | H264MovWriter:
+    if output_path.suffix.lower() == ".mov":
+        return H264MovWriter(output_path, fps, size)
     for fourcc in _video_writer_fourccs(output_path):
         writer = cv2.VideoWriter(str(output_path), cv2.VideoWriter_fourcc(*fourcc), fps, size)
         if writer.isOpened():
@@ -56,7 +114,7 @@ def _open_video_writer(output_path: Path, fps: float, size: tuple[int, int]) -> 
 
 
 def _writer_worker(
-    writer: cv2.VideoWriter,
+    writer: cv2.VideoWriter | H264MovWriter,
     frame_queue: Queue[np.ndarray | object],
     errors: list[BaseException],
 ) -> None:
@@ -73,11 +131,14 @@ def _writer_worker(
             finally:
                 frame_queue.task_done()
     finally:
-        writer.release()
+        try:
+            writer.release()
+        except BaseException as exc:
+            errors.append(exc)
 
 
 def _start_writer_threads(
-    writers: list[cv2.VideoWriter],
+    writers: list[cv2.VideoWriter | H264MovWriter],
     errors: list[BaseException],
     queue_size: int = 8,
 ) -> tuple[list[Queue[np.ndarray | object]], list[Thread]]:
@@ -160,7 +221,7 @@ def render_overlay_videos(
         cap.release()
         raise ValueError(f"Could not determine source video dimensions: {source_video}")
 
-    writers: list[cv2.VideoWriter] = []
+    writers: list[cv2.VideoWriter | H264MovWriter] = []
     queues: list[Queue[np.ndarray | object]] = []
     threads: list[Thread] = []
     writer_errors: list[BaseException] = []

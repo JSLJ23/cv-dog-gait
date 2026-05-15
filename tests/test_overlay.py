@@ -1,8 +1,11 @@
 from pathlib import Path
+import subprocess
 
 import cv2
 import numpy as np
 import pandas as pd
+
+from imageio_ffmpeg import get_ffmpeg_exe
 
 from dog_gait.analysis.overlay import render_overlay_video, render_overlay_videos
 from dog_gait.pose.schema import BODYPARTS
@@ -43,10 +46,20 @@ def _assert_readable_video(path: Path) -> None:
     assert frame.shape[:2] == (64, 96)
 
 
-def test_render_overlay_video_writes_browser_webm_and_download_mp4(tmp_path):
+def _assert_h264_video(path: Path) -> None:
+    result = subprocess.run(
+        [get_ffmpeg_exe(), "-hide_banner", "-i", str(path), "-f", "null", "-"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert "Video: h264" in result.stderr
+
+
+def test_render_overlay_video_writes_browser_webm_and_download_mov(tmp_path):
     source = tmp_path / "source.mp4"
     browser_output = tmp_path / "browser" / "overlay.webm"
-    download_output = tmp_path / "downloads" / "overlay.mp4"
+    download_output = tmp_path / "downloads" / "overlay.mov"
     _write_source_video(source)
     keypoints = _keypoints()
 
@@ -57,12 +70,13 @@ def test_render_overlay_video_writes_browser_webm_and_download_mp4(tmp_path):
     assert download_rendered == download_output
     _assert_readable_video(browser_output)
     _assert_readable_video(download_output)
+    _assert_h264_video(download_output)
 
 
 def test_render_overlay_videos_reports_progress_and_writes_outputs(tmp_path):
     source = tmp_path / "source.mp4"
     browser_output = tmp_path / "browser" / "overlay.webm"
-    download_output = tmp_path / "downloads" / "overlay.mp4"
+    download_output = tmp_path / "downloads" / "overlay.mov"
     _write_source_video(source)
     keypoints = _keypoints()
     progress = []
@@ -82,3 +96,4 @@ def test_render_overlay_videos_reports_progress_and_writes_outputs(tmp_path):
     assert stages == ["opening-writers", "rendering", "finalizing", "complete"]
     _assert_readable_video(browser_output)
     _assert_readable_video(download_output)
+    _assert_h264_video(download_output)

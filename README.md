@@ -2,7 +2,7 @@
 
 Dog gait analysis software for video-based pose estimation, fine-tuning, annotated overlays, and limb-angle tracking.
 
-https://raw.githubusercontent.com/JSLJ23/cv-dog-gait/main/assets/IMG_5301_overlay.mp4
+https://github.com/user-attachments/assets/f37f444c-d4d4-4132-9c19-59c797c32014
 
 ## Quick Start
 
@@ -20,7 +20,8 @@ uv run pytest
 ```
 
 ## Gait tracking (inference)
-https://raw.githubusercontent.com/JSLJ23/cv-dog-gait/main/assets/inference.mov
+
+https://github.com/user-attachments/assets/5a6fb70d-4aaf-48b5-ba3b-0a5137f4770b
 
 ## Data annotation
 TODO

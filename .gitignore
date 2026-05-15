@@ -216,3 +216,15 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Local demo artifacts
+data/uploads/*
+data/outputs/*
+data/checkpoints/*
+data/default_checkpoints/*
+data/annotations/*
+!data/uploads/.gitkeep
+!data/outputs/.gitkeep
+!data/checkpoints/.gitkeep
+!data/default_checkpoints/.gitkeep
+!data/annotations/.gitkeep
